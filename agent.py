@@ -217,8 +217,14 @@ def _session(cfg):
                 try:
                     sessions = winutil.list_sessions()
                 except Exception as exc:  # noqa: BLE001
-                    log("Не удалось получить список сеансов:", exc)
+                    import traceback
+                    log("Не удалось получить список сеансов:", exc,
+                        "\n" + traceback.format_exc())
                     sessions = []
+                log("Запрошены сеансы, найдено:",
+                    ", ".join(f"id={s['id']} {s.get('state_name','')} "
+                              f"{s.get('user') or s.get('station','')}"
+                              for s in sessions) or "нет")
                 with write_lock:
                     protocol.send_msg(sock, {"type": protocol.MSG_SESSIONS,
                                              "sessions": sessions})

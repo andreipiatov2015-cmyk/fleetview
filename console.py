@@ -455,9 +455,11 @@ class MainWindow(QWidget):
                 # Кто-то за компьютером — подключаемся теневым сеансом,
                 # не выкидывая пользователя.
                 winutil.shadow_session(ip, target["id"], control=True)
+                who = target.get("user") or target.get("station") or \
+                    f"сеанс {target['id']}"
                 self.append_log(
                     f"Теневое подключение к {info.hostname} ({ip}): "
-                    f"сеанс {target['user']} [{target['state_name']}]")
+                    f"{who} [{target['state_name']}]")
             else:
                 # За компьютером никого нет — обычный вход на рабочий стол.
                 winutil.connect_rdp(ip, user, self.admin_password,

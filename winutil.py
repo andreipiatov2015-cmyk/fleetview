@@ -272,11 +272,25 @@ def list_sessions():
                                         ctypes.byref(count)):
         return []
 
+    # Для теневого подключения нужен сеанс реального пользователя: состояние
+    # Active / Connected / Disconnected и номер не 0 (0 — служебный «Services»).
+    # Имя пользователя НЕ обязательно: оно только для отображения, и если его
+    # не удалось прочитать, сеанс всё равно годится.
+    _USABLE_STATES = {_WTS_ACTIVE, 1, _WTS_DISCONNECTED}  # 0, 1, 4
+
     out = []
     try:
         for i in range(count.value):
             s = p_sessions[i]
-            # Имя пользователя сеанса
+            sid = int(s.SessionId)
+            state = int(s.State)
+            station = s.pWinStationName or ""
+            if sid == 0 or state not in _USABLE_STATES:
+                continue
+            if station.lower().startswith("services"):
+                continue
+
+            # Имя пользователя — по возможности (может не прочитаться).
             buf = wintypes.LPWSTR()
             blen = wintypes.DWORD(0)
             user = ""
@@ -285,16 +299,14 @@ def list_sessions():
                     ctypes.byref(buf), ctypes.byref(blen)):
                 user = buf.value or ""
                 wtsapi.WTSFreeMemory(buf)
-            # Служебные сеансы без пользователя (Services, RDP-Tcp listener)
-            # не интересны для подключения.
-            if not user:
-                continue
+
             out.append({
-                "id": int(s.SessionId),
+                "id": sid,
                 "user": user,
-                "state": int(s.State),
-                "state_name": _WTS_STATE_NAMES.get(int(s.State), str(s.State)),
-                "active": int(s.State) == _WTS_ACTIVE,
+                "station": station,
+                "state": state,
+                "state_name": _WTS_STATE_NAMES.get(state, str(state)),
+                "active": state == _WTS_ACTIVE,
             })
     finally:
         wtsapi.WTSFreeMemory(p_sessions)

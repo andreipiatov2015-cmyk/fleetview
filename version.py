@@ -10,7 +10,7 @@ version.py — единый номер версии FleetView.
   3) GitHub Actions соберёт FleetViewAgent.exe и опубликует релиз.
 """
 
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 
 # Репозиторий, откуда берутся обновления (публичный — токен не нужен).
 GITHUB_OWNER = "andreipiatov2015-cmyk"
