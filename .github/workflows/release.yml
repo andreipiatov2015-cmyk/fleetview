@@ -1,0 +1,43 @@
+name: Release
+
+# Срабатывает при пуше тега вида v1.2.0. Собирает FleetViewAgent.exe на
+# Windows-раннере и публикует релиз с вложениями. Токен не нужен — Actions
+# использует встроенный GITHUB_TOKEN.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Установить PyInstaller
+        run: pip install pyinstaller
+
+      - name: Собрать FleetViewAgent.exe
+        run: pyinstaller --noconfirm --onefile --console --name FleetViewAgent agent.py
+
+      - name: Собрать пакет консоли
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force console_pkg | Out-Null
+          Copy-Item *.py, requirements.txt, *.bat, README.md console_pkg
+          Compress-Archive -Path console_pkg\* -DestinationPath FleetView-console.zip -Force
+
+      - name: Опубликовать релиз
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/FleetViewAgent.exe
+            FleetView-console.zip

@@ -1,0 +1,18 @@
+# Артефакты сборки
+build/
+dist/
+*.spec
+__pycache__/
+*.pyc
+
+# Локальные данные, не для репозитория
+agent_config.json
+agent.log
+console.json
+agent_package/
+_update_staging/
+_apply_update.py
+*.old
+*.new
+*.part
+FleetView.zip
