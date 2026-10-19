@@ -51,6 +51,34 @@ def current_username():
         return "unknown"
 
 
+def machine_id():
+    """
+    Стабильный идентификатор, уникальный для каждой машины.
+
+    На Windows — MachineGuid из реестра (создаётся при установке системы,
+    не меняется при смене IP, перезагрузке и копировании папки программы).
+    Это важно: если разворачивать агентов копированием папки, идентификатор
+    всё равно будет у каждой машины свой, и они не будут выбивать друг друга
+    с мастера.
+
+    Запасной вариант — по MAC-адресу.
+    """
+    if IS_WINDOWS:
+        try:
+            import winreg
+            with winreg.OpenKey(
+                    winreg.HKEY_LOCAL_MACHINE,
+                    r"SOFTWARE\Microsoft\Cryptography", 0,
+                    winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as k:
+                guid, _ = winreg.QueryValueEx(k, "MachineGuid")
+            if guid:
+                return "mg-" + str(guid).replace("-", "").lower()
+        except OSError:
+            pass
+    import uuid
+    return "mac-" + format(uuid.getnode(), "012x")
+
+
 # ---- Проверка учётной записи (требование: вход только под Администратором) --
 
 # Константы LogonUser

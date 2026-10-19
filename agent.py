@@ -94,9 +94,43 @@ def save_config(cfg):
 
 
 def ensure_agent_id(cfg):
-    if not cfg.get("agent_id"):
-        cfg["agent_id"] = uuid.uuid4().hex
+    # Идентификатор привязан к машине, а не к файлу конфигурации. Так два ПК
+    # с одинаковым (скопированным) конфигом всё равно получат разные ID и не
+    # будут выбивать друг друга с мастера.
+    cfg["agent_id"] = winutil.machine_id()
     return cfg
+
+
+# Фиксированный локальный порт-замок: не даёт запустить второй агент на ПК.
+_SINGLE_INSTANCE_PORT = 50912
+_lock_sock = None
+
+
+def acquire_single_instance(wait_seconds=10):
+    """
+    Гарантировать, что на машине работает только один агент. Возвращает True,
+    если это единственный экземпляр. Замок автоматически снимается при выходе
+    процесса (ОС освобождает порт).
+
+    Несколько секунд повторяем попытки: при самообновлении новый процесс
+    стартует, пока старый ещё завершается, — даём старому освободить замок.
+    """
+    global _lock_sock
+    import socket as _socket
+    deadline = time.time() + wait_seconds
+    while True:
+        s = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+        try:
+            s.bind(("127.0.0.1", _SINGLE_INSTANCE_PORT))
+            s.listen(1)
+            _lock_sock = s  # держим ссылку до конца жизни процесса
+            return True
+        except OSError:
+            s.close()
+            if time.time() >= deadline:
+                return False
+            if _stop.wait(1.0):
+                return False
 
 
 # ---- выполнение команд ----------------------------------------------------
@@ -438,6 +472,15 @@ def main(argv=None):
             return
         log("Нет конфигурации. Запустите install_agent.bat")
         sys.exit(1)
+
+    # Идентификатор всегда берём от машины (на случай скопированного конфига).
+    ensure_agent_id(cfg)
+
+    # Не допускаем второй экземпляр агента на этой машине — иначе два агента
+    # с одним ID бесконечно выбивают друг друга с мастера.
+    if not acquire_single_instance():
+        log("Агент уже запущен на этой машине — второй экземпляр завершён.")
+        return
 
     try:
         run_forever(cfg)
